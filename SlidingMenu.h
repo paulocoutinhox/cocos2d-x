@@ -12,6 +12,7 @@
 * v1.2 19.03.2012 Fixed a bug where a locked item indicated by the touch as the chosen.
 				  Fixed a bug page counter by Mr.  K pop (http://www.cocos2d-x.org/boards/18/topics/9931?r=10275#message-10275	)
 				  Added the ability to be used as a descriptor page of any object pointer CCNode *
+* v1.3 20.06.2012 Paulo Coutinho - Changed method gotoPage to change page without animation, useful when menu is created.
 */
 
 #include "cocos2d.h"
@@ -23,7 +24,7 @@ class SlidingMenuGrid:public CCLayer
 protected:
 	void buildGrid(int cols, int rows);
 	void buildGridVertical(int cols, int rows);
-	void moveToCurrentPage();
+	void moveToCurrentPage(bool animated = true);
 
 	virtual bool ccTouchBegan(CCTouch *pTouch, CCEvent *pEvent);
 	virtual void ccTouchMoved(CCTouch *pTouch, CCEvent *pEvent);
@@ -68,7 +69,7 @@ public:
 	void SetVerticalPaging(bool bValue);
 	int getPageCount(){return iPageCount;}
 	
-	void gotoPage(int iPage=0);
+	void gotoPage(int iPage=0, bool animated = true);
 	void setPageLabel(int,CCNode *);//Add label on the page
 };
 #endif

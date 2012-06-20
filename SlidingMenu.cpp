@@ -298,12 +298,19 @@ void SlidingMenuGrid::ccTouchEnded(CCTouch* touch, CCEvent* event)
 	state = kCCMenuStateWaiting;
 }
 
-void SlidingMenuGrid::moveToCurrentPage()
+void SlidingMenuGrid::moveToCurrentPage(bool animated)
 {
 	CCSize winSize = CCDirector::sharedDirector()->getWinSize();
-	// Perform the action
-	CCEaseBounce* action =CCEaseBounce::actionWithAction(CCMoveTo::actionWithDuration(fAnimSpeed*0.3f, GetPositionOfCurrentPage()));
-	runAction(action);
+
+    if (animated)
+    {
+        CCEaseBounce* action =CCEaseBounce::actionWithAction(CCMoveTo::actionWithDuration(fAnimSpeed*0.3f, GetPositionOfCurrentPage()));
+        runAction(action);        
+    }
+    else 
+    {
+        setPosition(GetPositionOfCurrentPage());
+    }
 }
 
 CCPoint SlidingMenuGrid::GetPositionOfCurrentPage()
@@ -352,7 +359,7 @@ void SlidingMenuGrid::SetVerticalPaging(bool bValue)
 	// this->buildGridVertical();
 }
 
-void SlidingMenuGrid::gotoPage(int iPage)
+void SlidingMenuGrid::gotoPage(int iPage, bool animated)
 {
 	int iSetPage=iPage;
 	if(iPage<=0)
@@ -362,7 +369,7 @@ void SlidingMenuGrid::gotoPage(int iPage)
 		iSetPage=iPageCount;
 	}
 	iCurrentPage=iSetPage-1;
-	moveToCurrentPage();
+	moveToCurrentPage(animated);
 }
 
 void SlidingMenuGrid::setPageLabel( int iPage,CCNode * pLabel)
