@@ -1,18 +1,33 @@
 #include "SlidingMenu.h"
 
-SlidingMenuGrid::SlidingMenuGrid() 
+SlidingMenuGrid::SlidingMenuGrid()
 {
 	
 }
 
-SlidingMenuGrid::~SlidingMenuGrid() 
+SlidingMenuGrid::~SlidingMenuGrid()
 {
 	
 }
 
 void SlidingMenuGrid::onExit()
 {
-    CCDirector::sharedDirector()->getTouchDispatcher()->removeDelegate(this);
+//    Director::getInstance()->getTouchDispatcher()->removeDelegate(this);
+}
+
+Scene* SlidingMenuGrid::createScene()
+{
+    // 'scene' is an autorelease object
+    auto scene = Scene::create();
+    
+    // 'layer' is an autorelease object
+    auto layer = SlidingMenuGrid::create();
+
+    // add layer as a child to scene
+    scene->addChild(layer);
+
+    // return the scene
+    return scene;
 }
 
 bool SlidingMenuGrid::init()
@@ -21,16 +36,51 @@ bool SlidingMenuGrid::init()
 	{
 		return false;
 	}
+    
+    Vector<Ref *> menuItems;
+    
+    //set up the menu item sprites (the buttons in the grid)
+    
+    auto *muhSprite1 = Sprite::create("Stats_Default.png");
+    auto *muhSprite1_Click = Sprite::create("Stats_Default_Click.png");
+    auto menuSprite1 = MenuItemSprite::create(muhSprite1, muhSprite1_Click);
+    // or if you want to call a function on click
+    // auto menuSprite1 = MenuItemSprite::create(muhSprite1, muhSprite1_Click, CC_CALLBACK_1(YourNameSpace::YourFunction, arg));
+
+    auto *muhSprite2 = Sprite::create("Single_Default.png");
+    auto *muhSprite2_Click = Sprite::create("Single_Default_Click.png");
+    auto menuSprite2 = MenuItemSprite::create(muhSprite2, muhSprite2_Click);
+
+    auto *muhSprite3 = Sprite::create("Multi_Default.png");
+    auto *muhSprite3_Click = Sprite::create("Multi_Default_Click.png");
+    auto menuSprite3 = MenuItemSprite::create(muhSprite3, muhSprite3_Click);
+    
+    menuItems.pushBack(menuSprite1);
+    menuItems.pushBack(menuSprite2);
+    menuItems.pushBack(menuSprite3);
+    
+    Size visibleSize = Director::getInstance()->getVisibleSize();
+    Point origin = Director::getInstance()->getVisibleOrigin();
+    
+   	//create a sliding menu grid object
+    SlidingMenuGrid* myGrid = SlidingMenuGrid::menuWithArray(menuItems, 1, 2, Point(origin.x + visibleSize.width, origin.y + visibleSize.height), Point(10, 20), false);
+
+    //add it to the layer
+    this->addChild(myGrid, 0);
+
+    
+    
+    
 	return true;
 }
 
-SlidingMenuGrid* SlidingMenuGrid::menuWithArray(CCArray *items, int cols, int rows, CCPoint pos , CCPoint pad)
-{ 
+SlidingMenuGrid* SlidingMenuGrid::menuWithArray(Vector<Ref *> items, int cols, int rows, Point pos , Point pad)
+{
 	return menuWithArray(items,cols,rows,pos,pad,false);
 }
 
 
-SlidingMenuGrid* SlidingMenuGrid::menuWithArray(CCArray *items, int cols, int rows, CCPoint pos , CCPoint pad, bool vertical)
+SlidingMenuGrid* SlidingMenuGrid::menuWithArray(Vector<Ref *> items, int cols, int rows, Point pos , Point pad, bool vertical)
 {
 	SlidingMenuGrid *slidingMenu = new SlidingMenuGrid();
 	if (slidingMenu && slidingMenu->initWithArray(items ,cols ,rows ,pos ,pad ,vertical))
@@ -42,28 +92,30 @@ SlidingMenuGrid* SlidingMenuGrid::menuWithArray(CCArray *items, int cols, int ro
 	return NULL;
 }
 
-bool SlidingMenuGrid::initWithArray(CCArray *items, int cols, int rows, CCPoint pos , CCPoint pad, bool vertical)
+bool SlidingMenuGrid::initWithArray(Vector<Ref *> items, int cols, int rows, Point pos , Point pad, bool vertical)
 {
 	if( !CCLayer::init() )
 	{
 		return false;
 	}
-
+    
 	selectedItem = NULL;
-	setIsTouchEnabled(true);
-    CCDirector::sharedDirector()->getTouchDispatcher()->addTargetedDelegate(this,0,true);
-	pMenu=new CCMenu;
-	addChild(pMenu,0);
+	//cocos2d-x 3 requires us to set up our own setTouchEnabled Function
+	setTouchEnabled(true);
+	this->pMenu= Menu::create();
+    
 
-    CCObject *object;
-    CCMenuItemSprite *getItem;
-
-    CCARRAY_FOREACH(items, object)
-    {
-        getItem = (CCMenuItemSprite*)object;
+    MenuItemSprite *getItem;
+    
+    // add each menu item sprite as a child to the Menu object
+    for (Ref* object : items){
+        getItem = (MenuItemSprite*)object;
         pMenu->addChild(getItem, 1, getItem->getTag());
     }
+    
+    this->addChild(pMenu,0);
 
+    
 	padding = pad;
 	iCurrentPage = 0;
 	bMoving = false;
@@ -72,26 +124,28 @@ bool SlidingMenuGrid::initWithArray(CCArray *items, int cols, int rows, CCPoint 
 	fMoveDeadZone = 10;
 	bVerticalPaging = vertical;
 	fAnimSpeed = 1;
-	state=kCCMenuStateWaiting;
+	state=Menu::State::WAITING;
 	(bVerticalPaging) ? this->buildGridVertical(cols ,rows) : this->buildGrid(cols, rows);
 	this->setPosition(menuOrigin);
+
 	return true;
 }
 
 
 void SlidingMenuGrid::buildGrid(int cols, int rows)
 {
-	CCSize winSize = CCDirector::sharedDirector()->getWinSize();
-
+	Size winSize = Director::getInstance()->getWinSize();
+    
 	int col = 0, row = 0;
-	CCArray* child = pMenu->getChildren();
-	CCObject* item;
-	CCPoint position=getPosition();
+	Vector<Node*> child = pMenu->getChildren();
+	
+	Point position=getPosition();
 	iPageCount=0;
-	CCARRAY_FOREACH(child, item)
-	{
-		CCMenuItemSprite* getItem = (CCMenuItemSprite*) item;
-		getItem->setPosition(ccp(position.x +  menuOrigin.x + col * padding.x + (iPageCount * winSize.width), position.y +(winSize.height-menuOrigin.y)- row * padding.y));
+	
+	//for each menuitemsprite, set the correct position
+    for (Ref* item : child){
+		MenuItemSprite* getItem = (MenuItemSprite*) item;
+		getItem->setPosition(Point(position.x + menuOrigin.x + col * padding.x + (iPageCount * winSize.width), position.y +(winSize.height-menuOrigin.y)- row * padding.y));
 		++col;
 		if (col == cols)
 		{
@@ -106,27 +160,27 @@ void SlidingMenuGrid::buildGrid(int cols, int rows)
 		}
 		
 	}
-	if(child->count() > rows*cols*iPageCount)//   <-- add code for FIX (Mr.  K pop)
+
+	if(child.size() > rows*cols*iPageCount)//   <-- add code for FIX (Mr.  K pop)
 	{
 		iPageCount++;
-	}	
+	}
 }
 
 
 
 void SlidingMenuGrid::buildGridVertical(int cols, int rows)
-{ 
-	CCSize winSize = CCDirector::sharedDirector()->getWinSize();
-
+{
+	Size winSize = Director::getInstance()->getWinSize();
+    
 	int col = 0, row = 0;
-	CCArray* child = pMenu->getChildren();
-	CCObject* item;
-	CCPoint position=getPosition();
+	Vector<Node*> child = pMenu->getChildren();
+
+	Point position=getPosition();
 	iPageCount=0;
-	CCARRAY_FOREACH(child, item)
-	{
-		CCMenuItemSprite* getItem = (CCMenuItemSprite*) item;
-		getItem->setPosition(ccp(position.x + menuOrigin.x+col * padding.x , position.y +(winSize.height-menuOrigin.y)- row * padding.y - (iPageCount * winSize.height)));
+    for (Ref* item : child ) {
+		MenuItemSprite* getItem = (MenuItemSprite*) item;
+		getItem->setPosition(Point(position.x + menuOrigin.x+col * padding.x , position.y +(winSize.height-menuOrigin.y)- row * padding.y - (iPageCount * winSize.height)));
 		++col;
 		if (col == cols)
 		{
@@ -139,102 +193,112 @@ void SlidingMenuGrid::buildGridVertical(int cols, int rows)
 				row = 0;
 			}
 		}
-
+        
 	}
-	if(child->count() > rows*cols*iPageCount)//   <-- add code for FIX (Mr.  K pop)
+	if(child.size() > rows*cols*iPageCount)//   <-- add code for FIX (Mr.  K pop)
 	{
 		iPageCount++;
 	}
 }
 
+void SlidingMenuGrid::setTouchEnabled(bool enabled) {
+    
+    auto myListener = EventListenerTouchOneByOne::create();
+    myListener->onTouchBegan = CC_CALLBACK_2(SlidingMenuGrid::touchBegan, this);
+    myListener->onTouchMoved = CC_CALLBACK_2(SlidingMenuGrid::touchMoved, this);
+    myListener->onTouchEnded = CC_CALLBACK_2(SlidingMenuGrid::touchEnded, this);
+    myListener->onTouchCancelled = CC_CALLBACK_2(SlidingMenuGrid::touchCancelled, this);
+    _eventDispatcher->addEventListenerWithSceneGraphPriority(myListener, this);
+}
 
-CCMenuItemSprite* SlidingMenuGrid::GetItemWithinTouch(CCTouch* touch)
+
+MenuItemSprite* SlidingMenuGrid::GetItemWithinTouch(Touch* touch)
 {
-    CCPoint touchLocation = CCDirector::sharedDirector()->convertToGL(touch->locationInView());
-
+    Point touchLocation = Director::getInstance()->convertToGL(touch->getLocationInView());
+    
 	// Parse our menu items and see if our touch exists within one.
-	CCArray* child = pMenu->getChildren();
-	CCObject* item;
-	CCARRAY_FOREACH(child, item)
-	{
+	Vector<Node*> child = pMenu->getChildren();
+	
+
+    for (Ref* item : child){
 		
-		CCMenuItemSprite * getItem= static_cast<CCMenuItemSprite *>(item);
-				
-		CCPoint local = getItem->convertToNodeSpace(touchLocation);
-		CCRect r = getItem->rect();
-		r.origin = CCPointZero;// If the touch was within this item. Return the item.
-		if (CCRect::CCRectContainsPoint(r, local))
+		MenuItemSprite * getItem= static_cast<MenuItemSprite *>(item);
+        
+		Point local = getItem->convertToNodeSpace(touchLocation);
+		Rect r = getItem->rect();
+		r.origin = Point::ZERO;// If the touch was within this item. Return the item.
+		if (r.containsPoint(local))
 		{
-			return getItem;			
+			return getItem;
 		}
 	}
-	// Didn't touch an item. 
+	// Didn't touch an item.
 	return NULL;
 }
 
-bool SlidingMenuGrid::ccTouchBegan(CCTouch* touch, CCEvent* event)
+bool SlidingMenuGrid::touchBegan(Touch* touch, Event* event)
 {
-    touchOrigin = CCDirector::sharedDirector()->convertToGL(touch->locationInView());
-
+    touchOrigin = Director::getInstance()->convertToGL(touch->getLocationInView());
+    
     // If we weren't in "waiting" state bail out.
-	if (state == kCCMenuStateWaiting)
-	{ 
+	if (state == Menu::State::WAITING)
+	{
 		// Activate the menu item if we are touching one.
 		if(!bMoving)
 		{
 			selectedItem = GetItemWithinTouch(touch);
 			if(selectedItem)
 			{
-				if(selectedItem->getIsEnabled())
+				if(selectedItem->isEnabled())
 					selectedItem->selected();
 			}
 		}
-		state = kCCMenuStateTrackingTouch;
+		state = Menu::State::TRACKING_TOUCH;
 	}
 	return true;
 }
 
-void SlidingMenuGrid::ccTouchCancelled(CCTouch* touch, CCEvent* event)
+void SlidingMenuGrid::touchCancelled(Touch* touch, Event* event)
 {
 	if(selectedItem)
 	{
 		selectedItem->unselected();
 		selectedItem = NULL;
-		state = kCCMenuStateWaiting;
+		state = Menu::State::WAITING;
 	}
 }
 
-void SlidingMenuGrid::ccTouchMoved(CCTouch* touch, CCEvent* event)
+void SlidingMenuGrid::touchMoved(Touch* touch, Event* event)
 {
 	if(GetItemWithinTouch(touch) == NULL && selectedItem)
 	{
 		//Touch Cancelled
-		if(selectedItem->getIsEnabled())
+		if(selectedItem->isEnabled())
 		{
 			selectedItem->unselected();
 		}
 		selectedItem = NULL;
-		state = kCCMenuStateWaiting; 
+		state = Menu::State::WAITING;
 		return;
 	}
-
+    
 	if(GetItemWithinTouch(touch) != NULL && selectedItem)
 	{
 		return;
 	}
 	// Calculate the current touch point during the move.
-    touchStop = CCDirector::sharedDirector()->convertToGL(touch->locationInView());// Distance between the origin of the touch and current touch point.
-	fMoveDelta = (bVerticalPaging) ? (touchStop.y - touchOrigin.y) : (touchStop.x - touchOrigin.x);// Set our position.    
+    touchStop = Director::getInstance()->convertToGL(touch->getLocationInView());// Distance between the origin of the touch and current touch point.
+	fMoveDelta = (bVerticalPaging) ? (touchStop.y - touchOrigin.y) : (touchStop.x - touchOrigin.x);// Set our position.
 	setPosition(GetPositionOfCurrentPageWithOffset(fMoveDelta));
 	bMoving = true;
 }
 
-void SlidingMenuGrid::ccTouchEnded(CCTouch* touch, CCEvent* event)
+void SlidingMenuGrid::touchEnded(Touch* touch, Event* event)
 {
 	if( bMoving )
 	{
 		bMoving = false;
-		{			
+		{
 			// Do we have multiple pages?
 			if( iPageCount > 1 && (fMoveDeadZone < abs(fMoveDelta)))
 			{
@@ -272,14 +336,14 @@ void SlidingMenuGrid::ccTouchEnded(CCTouch* touch, CCEvent* event)
 				// Start sliding towards the current page.
 				moveToCurrentPage();
 			}
-			else 
+			else
 			{
 				if(selectedItem)
 				{
 					selectedItem->unselected();
 					selectedItem->activate();
 				}
-			}				
+			}
 		}
 	}
 	else
@@ -287,61 +351,65 @@ void SlidingMenuGrid::ccTouchEnded(CCTouch* touch, CCEvent* event)
 		//Only touch
 		if(selectedItem)
 		{
-			if(selectedItem->getIsEnabled())
+			if(selectedItem->isEnabled())
 			{
 				selectedItem->unselected();
 				selectedItem->activate();
 			}
-			//selectedItem=NULL;			
+			//selectedItem=NULL;
 		}
 	}
-	state = kCCMenuStateWaiting;
+	state = Menu::State::WAITING;
 }
 
 void SlidingMenuGrid::moveToCurrentPage(bool animated)
 {
-	CCSize winSize = CCDirector::sharedDirector()->getWinSize();
-
+	Size winSize = Director::getInstance()->getWinSize();
+    
     if (animated)
     {
-        CCEaseBounce* action =CCEaseBounce::actionWithAction(CCMoveTo::actionWithDuration(fAnimSpeed*0.3f, GetPositionOfCurrentPage()));
-        runAction(action);        
+    	//animations are currently broken - to be implemented later
+//        EaseBounce* action =EaseBounce::initWithAction(CCMoveTo::actionWithDuration(fAnimSpeed*0.3f, GetPositionOfCurrentPage()));
+//        EaseBounce* action ;
+//        action->initWithAction(MoveTo::initWithDuration(fAnimSpeed*0.3f, GetPositionOfCurrentPage()))
+//        runAction(action);
+        setPosition(GetPositionOfCurrentPage());
     }
-    else 
+    else
     {
         setPosition(GetPositionOfCurrentPage());
     }
 }
 
-CCPoint SlidingMenuGrid::GetPositionOfCurrentPage()
+Point SlidingMenuGrid::GetPositionOfCurrentPage()
 {
-	CCSize winSize = CCDirector::sharedDirector()->getWinSize();
-	CCPoint position=getPosition();
+	Size winSize = Director::getInstance()->getWinSize();
+	Point position=getPosition();
 	if(bVerticalPaging)
-		position=CCPointMake(0,iCurrentPage*winSize.height);
+		position=Point(0,iCurrentPage*winSize.height);
 	else
-		position=CCPointMake(-(iCurrentPage)*winSize.width,0);
+		position=Point(-(iCurrentPage)*winSize.width,0);
 	return position;
 }
 
-CCPoint SlidingMenuGrid::GetPositionOfCurrentPageWithOffset(float offset)
+Point SlidingMenuGrid::GetPositionOfCurrentPageWithOffset(float offset)
 {
-	CCSize winSize = CCDirector::sharedDirector()->getWinSize();
-	CCPoint position=GetPositionOfCurrentPage();
+	Size winSize = Director::getInstance()->getWinSize();
+	Point position=GetPositionOfCurrentPage();
 	if(bVerticalPaging)
 		position.y+=offset;
 	else
-		position.x+=offset;		
+		position.x+=offset;
 	return position;
 }
 
-// Returns the swiping dead zone. 
+// Returns the swiping dead zone.
 float SlidingMenuGrid::GetSwipeDeadZone()
 {
 	return fMoveDeadZone;
 }
 
-void SlidingMenuGrid::SetSwipeDeadZone(float fValue) 
+void SlidingMenuGrid::SetSwipeDeadZone(float fValue)
 {
 	fMoveDeadZone = fValue;
 }
@@ -349,11 +417,11 @@ void SlidingMenuGrid::SetSwipeDeadZone(float fValue)
 // Returns wheather or not vertical paging is enabled.
 bool SlidingMenuGrid::IsVerticallyPaged()
 {
-	return bVerticalPaging; 
+	return bVerticalPaging;
 }
 
 // Sets the vertical paging flag.
-void SlidingMenuGrid::SetVerticalPaging(bool bValue) 
+void SlidingMenuGrid::SetVerticalPaging(bool bValue)
 {
 	bVerticalPaging = bValue;
 	// this->buildGridVertical();
@@ -372,7 +440,7 @@ void SlidingMenuGrid::gotoPage(int iPage, bool animated)
 	moveToCurrentPage(animated);
 }
 
-void SlidingMenuGrid::setPageLabel( int iPage,CCNode * pLabel)
+void SlidingMenuGrid::setPageLabel( int iPage,Node * pLabel)
 {
 	addChild(pLabel,10);
 	if(!pLabel)
@@ -384,12 +452,12 @@ void SlidingMenuGrid::setPageLabel( int iPage,CCNode * pLabel)
 	{
 		iSetPage=iPageCount;
 	}
-	CCSize winSize = CCDirector::sharedDirector()->getWinSize();
-	CCSize labelSize= pLabel->getContentSize();
-	CCPoint pt=getPosition();
+	Size winSize = Director::getInstance()->getWinSize();
+	Size labelSize= pLabel->getContentSize();
+	Point pt=getPosition();
 	if(bVerticalPaging)
-		pt=CCPointMake(menuOrigin.x+labelSize.width/2,winSize.height-menuOrigin.y-winSize.height*(iSetPage-1)-iMenuRows*padding.y-labelSize.height/2);
+		pt=Point(menuOrigin.x+labelSize.width/2,winSize.height-menuOrigin.y-winSize.height*(iSetPage-1)-iMenuRows*padding.y-labelSize.height/2);
 	else
-		pt=CCPointMake(menuOrigin.x+(iSetPage-1)*winSize.width+labelSize.width/2,winSize.height-menuOrigin.y-iMenuRows*padding.y-labelSize.height/2);
+		pt=Point(menuOrigin.x+(iSetPage-1)*winSize.width+labelSize.width/2,winSize.height-menuOrigin.y-iMenuRows*padding.y-labelSize.height/2);
 	pLabel->setPosition(pt);
 }
